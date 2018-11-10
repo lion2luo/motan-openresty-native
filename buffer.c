@@ -4,31 +4,44 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "motan.h"
 #include "buffer.h"
 
-static void die(const char *fmt, ...) {
-    va_list arg;
-
-    va_start(arg, fmt);
-    vfprintf(stderr, fmt, arg);
-    va_end(arg);
-    fprintf(stderr, "\n");
-    exit(-1);
+motan_bytes_buffer_t *
+motan_new_bytes_buffer_from_bytes(const uint8_t *raw_bytes, size_t len, byte_order_t order, uint8_t read_only) {
+    motan_bytes_buffer_t *mb = (motan_bytes_buffer_t *) malloc(sizeof(motan_bytes_buffer_t));
+    if (mb == NULL) {
+        die("Out of memory");
+    }
+    if (!read_only) {
+        mb->buffer = (uint8_t *) malloc(len * sizeof(uint8_t));
+        if (mb->buffer == NULL) {
+            free(mb);
+            die("Out of memory");
+        }
+        memcpy(mb->buffer, raw_bytes, len);
+    } else {
+        mb->buffer = (uint8_t *) raw_bytes;
+    }
+    mb->_read_only = read_only;
+    mb->read_pos = 0;
+    mb->write_pos = len;
+    mb->capacity = len;
+    return mb;
 }
 
 motan_bytes_buffer_t *motan_new_bytes_buffer(size_t capacity, byte_order_t order) {
     motan_bytes_buffer_t *mb = (motan_bytes_buffer_t *) malloc(sizeof(motan_bytes_buffer_t));
     if (mb == NULL) {
-        return NULL;
+        die("Out of memory");
     }
     mb->buffer = (uint8_t *) malloc(capacity * sizeof(uint8_t));
     if (mb->buffer == NULL) {
         free(mb);
-        return NULL;
+        die("Out of memory");
     }
+    mb->_read_only = 0;
     mb->order = order;
     mb->read_pos = 0;
     mb->write_pos = 0;
@@ -41,15 +54,16 @@ void motan_free_bytes_buffer(motan_bytes_buffer_t *mb) {
         return;
     }
     if (mb->buffer != NULL) {
-        free(mb->buffer);
+        if (!mb->_read_only) {
+            free(mb->buffer);
+        }
         mb->buffer = NULL;
     }
     free(mb);
 }
 
 static void mb_grow_buffer(motan_bytes_buffer_t *mb, size_t n) {
-    assert(mb != NULL);
-    assert(mb->buffer != NULL);
+    assert(!mb->_read_only);
     size_t new_cap = 2 * mb->capacity + n;
     uint8_t *new_buffer = (uint8_t *) malloc(new_cap);
     if (new_buffer == NULL) {
@@ -62,6 +76,7 @@ static void mb_grow_buffer(motan_bytes_buffer_t *mb, size_t n) {
 }
 
 void mb_set_write_pos(motan_bytes_buffer_t *mb, uint32_t pos) {
+    assert(!mb->_read_only);
     if (mb->capacity < pos) {
         mb_grow_buffer(mb, pos - mb->capacity);
     }
@@ -83,6 +98,7 @@ inline int mb_remain(motan_bytes_buffer_t *mb) {
 }
 
 void mb_write_bytes(motan_bytes_buffer_t *mb, const uint8_t *bytes, int len) {
+    assert(!mb->_read_only);
     if (mb->capacity < mb->write_pos + len) {
         mb_grow_buffer(mb, len);
     }
@@ -91,6 +107,7 @@ void mb_write_bytes(motan_bytes_buffer_t *mb, const uint8_t *bytes, int len) {
 }
 
 void mb_write_byte(motan_bytes_buffer_t *mb, uint8_t u) {
+    assert(!mb->_read_only);
     if (mb->capacity < mb->write_pos + 1) {
         mb_grow_buffer(mb, 1);
     }
@@ -99,6 +116,7 @@ void mb_write_byte(motan_bytes_buffer_t *mb, uint8_t u) {
 }
 
 void mb_write_uint16(motan_bytes_buffer_t *mb, uint16_t u) {
+    assert(!mb->_read_only);
     if (mb->capacity < mb->write_pos + 2) {
         mb_grow_buffer(mb, 2);
     }
@@ -111,6 +129,7 @@ void mb_write_uint16(motan_bytes_buffer_t *mb, uint16_t u) {
 }
 
 void mb_write_uint32(motan_bytes_buffer_t *mb, uint32_t u) {
+    assert(!mb->_read_only);
     if (mb->capacity < mb->write_pos + 4) {
         mb_grow_buffer(mb, 4);
     }
@@ -123,6 +142,7 @@ void mb_write_uint32(motan_bytes_buffer_t *mb, uint32_t u) {
 }
 
 void mb_write_uint64(motan_bytes_buffer_t *mb, uint64_t u) {
+    assert(!mb->_read_only);
     if (mb->capacity < mb->write_pos + 8) {
         mb_grow_buffer(mb, 8);
     }
@@ -135,6 +155,7 @@ void mb_write_uint64(motan_bytes_buffer_t *mb, uint64_t u) {
 }
 
 void mb_write_varint(motan_bytes_buffer_t *mb, uint64_t u, int *len) {
+    assert(!mb->_read_only);
     int l = 0;
     for (; u >= 1 << 7;) {
         mb_write_byte(mb, (uint8_t) ((u & 0x7f) | 0x80));
@@ -146,7 +167,6 @@ void mb_write_varint(motan_bytes_buffer_t *mb, uint64_t u, int *len) {
 }
 
 int mb_read_bytes(motan_bytes_buffer_t *mb, uint8_t *bs, int len) {
-    assert(len > 0);
     if (mb_remain(mb) < len) {
         return E_MOTAN_BUFFER_NOT_ENOUGH;
     }

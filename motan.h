@@ -12,9 +12,14 @@
 #define E_MOTAN_OVERFLOW -2
 #define E_MOTAN_UNSUPPORTED_TYPE -3
 #define E_MOTAN_MEMORY_NOT_ENOUGH -4
+#define E_MOTAN_WRONG_SIZE -5
 
 #define MOTAN_MODNAME "cmotan"
 #define MOTAN_VERSION "0.0.1"
+
+#ifndef __unused
+#define __unused __attribute__((unused))
+#endif
 
 extern int luaopen_cmotan(lua_State *L);
 
@@ -23,7 +28,7 @@ static inline int motan_version(lua_State *L) {
     return 1;
 }
 
-static const char *motan_error(int err) {
+__unused static const char *motan_error(int err) {
     switch (err) {
         case MOTAN_OK:
             return "ok";
@@ -35,6 +40,8 @@ static const char *motan_error(int err) {
             return "motan unsupported type";
         case E_MOTAN_MEMORY_NOT_ENOUGH:
             return "motan memory not enough";
+        case E_MOTAN_WRONG_SIZE:
+            return "motan wrong data size";
         default:
             return "unknown error";
     }

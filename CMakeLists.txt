@@ -14,14 +14,14 @@ set(SOURCE_FILES serialization.c utils.c buffer.c)
 
 add_library(motan_shared SHARED ${SOURCE_FILES})
 SET_TARGET_PROPERTIES(motan_shared PROPERTIES OUTPUT_NAME "motan")
-target_link_libraries(motan_shared Lua)
+target_link_libraries(motan_shared lua)
 
 add_library(motan_static STATIC ${SOURCE_FILES})
 SET_TARGET_PROPERTIES(motan_static PROPERTIES OUTPUT_NAME "motan")
-target_link_libraries(motan_static Lua)
+target_link_libraries(motan_static lua)
 
 add_executable(buffer_unittest buffer_unittest.c)
 target_link_libraries(buffer_unittest motan_static)
 
 add_executable(serialization_unittest serialization_unittest.c)
-target_link_libraries(serialization_unittest motan_shared)
+target_link_libraries(serialization_unittest lua)

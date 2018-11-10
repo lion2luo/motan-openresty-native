@@ -6,6 +6,11 @@
 #define MOTAN_LUA_BUFFER_H
 
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+
+#include "motan.h"
 
 typedef enum {
     M_BIG_ENDIAN, M_LITTLE_ENDIAN
@@ -17,9 +22,40 @@ typedef struct {
     uint32_t write_pos;
     uint32_t read_pos;
     size_t capacity;
+    uint8_t _read_only;
 } motan_bytes_buffer_t;
 
+__unused static void die(const char *fmt, ...) {
+    va_list arg;
+
+    va_start(arg, fmt);
+    vfprintf(stderr, fmt, arg);
+    va_end(arg);
+    fprintf(stderr, "\n");
+    exit(-1);
+}
+
+
+__unused static void dump_bytes(const uint8_t *bs, int len) {
+    for (int i = 0; i < len; i++) {
+        printf("%02x", (uint8_t) bs[i]);
+    }
+    printf("\n");
+}
+
+__unused static void mb_dump(motan_bytes_buffer_t *mb) {
+    fprintf(stderr, "mb: %p,", mb);
+    fprintf(stderr, "read_only: %s,", mb->_read_only ? "true" : "false");
+    fprintf(stderr, "write_pos: %d,", mb->write_pos);
+    fprintf(stderr, "read_post: %d,", mb->read_pos);
+    fprintf(stderr, "capacity: %zu,", mb->capacity);
+    fprintf(stderr, "buffer: %p\n", mb->buffer);
+}
+
 extern motan_bytes_buffer_t *motan_new_bytes_buffer(size_t capacity, byte_order_t order);
+
+extern motan_bytes_buffer_t *
+motan_new_bytes_buffer_from_bytes(const uint8_t *raw_bytes, size_t size, byte_order_t order, uint8_t read_only);
 
 extern void motan_free_bytes_buffer(motan_bytes_buffer_t *mb);
 
