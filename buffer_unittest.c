@@ -24,7 +24,6 @@ int main() {
     uint8_t *rb = (uint8_t *) malloc(len + 1);
     rb[len] = '\0';
     mb_read_bytes(mb, rb, len);
-    mb_reset(mb);
     assert(strcmp(bs, (const char *) rb) == 0);
     free(rb);
 
@@ -39,7 +38,6 @@ int main() {
     mb_write_uint32(mb, u32_test_v);
     uint32_t u32;
     mb_read_uint32(mb, &u32);
-    mb_reset(mb);
     assert(u32_test_v == u32);
 
     uint64_t u64_test_v = (uint64_t) 0xffffffffffffffffL;
@@ -53,13 +51,11 @@ int main() {
     mb_write_varint(mb, zigzag_encode(u64_test_v), &varint_len);
     mb_read_varint(mb, &u64);
     u64 = zigzag_decode(u64);
-    mb_reset(mb);
     assert(u64_test_v == u64);
 
     mb_write_varint(mb, zigzag_encode(u32_test_v), &varint_len);
     mb_read_varint(mb, &u64);
     u32 = zigzag_decode(u64);
-    mb_reset(mb);
     assert(u32_test_v == u32);
 
     motan_free_bytes_buffer(mb);

@@ -3,11 +3,21 @@
 //
 #include <stdlib.h>
 #include <assert.h>
-#include <errno.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "motan.h"
 #include "buffer.h"
+
+static void die(const char *fmt, ...) {
+    va_list arg;
+
+    va_start(arg, fmt);
+    vfprintf(stderr, fmt, arg);
+    va_end(arg);
+    fprintf(stderr, "\n");
+    exit(-1);
+}
 
 motan_bytes_buffer_t *motan_new_bytes_buffer(size_t capacity, byte_order_t order) {
     motan_bytes_buffer_t *mb = (motan_bytes_buffer_t *) malloc(sizeof(motan_bytes_buffer_t));
@@ -37,35 +47,29 @@ void motan_free_bytes_buffer(motan_bytes_buffer_t *mb) {
     free(mb);
 }
 
-static int mb_grow_buffer(motan_bytes_buffer_t *mb, size_t n) {
+static void mb_grow_buffer(motan_bytes_buffer_t *mb, size_t n) {
     assert(mb != NULL);
     assert(mb->buffer != NULL);
     size_t new_cap = 2 * mb->capacity + n;
     uint8_t *new_buffer = (uint8_t *) malloc(new_cap);
     if (new_buffer == NULL) {
-        return E_MOTAN_MEMORY_NOT_ENOUGH;
+        die("Out of memory");
     }
     memcpy(new_buffer, mb->buffer, mb->capacity);
     free(mb->buffer);
     mb->buffer = new_buffer;
     mb->capacity = new_cap;
-    return MOTAN_OK;
 }
 
-int mb_set_write_pos(motan_bytes_buffer_t *mb, uint32_t pos) {
+void mb_set_write_pos(motan_bytes_buffer_t *mb, uint32_t pos) {
     if (mb->capacity < pos) {
-        int err = mb_grow_buffer(mb, pos - mb->capacity);
-        if (err != MOTAN_OK) {
-            return err;
-        }
+        mb_grow_buffer(mb, pos - mb->capacity);
     }
     mb->write_pos = pos;
-    return MOTAN_OK;
 }
 
-int mb_set_read_pos(motan_bytes_buffer_t *mb, uint32_t pos) {
+void mb_set_read_pos(motan_bytes_buffer_t *mb, uint32_t pos) {
     mb->read_pos = pos;
-    return MOTAN_OK;
 }
 
 inline void mb_reset(motan_bytes_buffer_t *mb) {
@@ -78,94 +82,67 @@ inline int mb_remain(motan_bytes_buffer_t *mb) {
     return mb->write_pos - mb->read_pos;
 }
 
-int mb_write_bytes(motan_bytes_buffer_t *mb, const uint8_t *bytes, int len) {
+void mb_write_bytes(motan_bytes_buffer_t *mb, const uint8_t *bytes, int len) {
     if (mb->capacity < mb->write_pos + len) {
-        int err = mb_grow_buffer(mb, len);
-        if (err != MOTAN_OK) {
-            return err;
-        }
+        mb_grow_buffer(mb, len);
     }
     memcpy((void *) (mb->buffer + mb->write_pos), (void *) bytes, len);
     mb->write_pos += len;
-    return MOTAN_OK;
 }
 
-int mb_write_byte(motan_bytes_buffer_t *mb, uint8_t u) {
+void mb_write_byte(motan_bytes_buffer_t *mb, uint8_t u) {
     if (mb->capacity < mb->write_pos + 1) {
-        int err = mb_grow_buffer(mb, 1);
-        if (err != MOTAN_OK) {
-            return err;
-        }
+        mb_grow_buffer(mb, 1);
     }
     mb->buffer[mb->write_pos] = u;
     mb->write_pos++;
-    return MOTAN_OK;
 }
 
-int mb_write_uint16(motan_bytes_buffer_t *mb, uint16_t u) {
+void mb_write_uint16(motan_bytes_buffer_t *mb, uint16_t u) {
     if (mb->capacity < mb->write_pos + 2) {
-        int err = mb_grow_buffer(mb, 2);
-        if (err != MOTAN_OK) {
-            return err;
-        }
+        mb_grow_buffer(mb, 2);
     }
     if (mb->order == M_BIG_ENDIAN) {
-        big_endian_write_uint16(mb->buffer, u);
+        big_endian_write_uint16(mb->buffer + mb->write_pos, u);
     } else {
-        little_endian_write_uint16(mb->buffer, u);
+        little_endian_write_uint16(mb->buffer + mb->write_pos, u);
     }
     mb->write_pos += 2;
-    return MOTAN_OK;
 }
 
-int mb_write_uint32(motan_bytes_buffer_t *mb, uint32_t u) {
+void mb_write_uint32(motan_bytes_buffer_t *mb, uint32_t u) {
     if (mb->capacity < mb->write_pos + 4) {
-        int err = mb_grow_buffer(mb, 4);
-        if (err != MOTAN_OK) {
-            return err;
-        }
+        mb_grow_buffer(mb, 4);
     }
     if (mb->order == M_BIG_ENDIAN) {
-        big_endian_write_uint32(mb->buffer, u);
+        big_endian_write_uint32(mb->buffer + mb->write_pos, u);
     } else {
-        little_endian_write_uint32(mb->buffer, u);
+        little_endian_write_uint32(mb->buffer + mb->write_pos, u);
     }
     mb->write_pos += 4;
-    return MOTAN_OK;
 }
 
-int mb_write_uint64(motan_bytes_buffer_t *mb, uint64_t u) {
+void mb_write_uint64(motan_bytes_buffer_t *mb, uint64_t u) {
     if (mb->capacity < mb->write_pos + 8) {
-        int err = mb_grow_buffer(mb, 8);
-        if (err != MOTAN_OK) {
-            return err;
-        }
+        mb_grow_buffer(mb, 8);
     }
     if (mb->order == M_BIG_ENDIAN) {
-        big_endian_write_uint64(mb->buffer, u);
+        big_endian_write_uint64(mb->buffer + mb->write_pos, u);
     } else {
-        little_endian_write_uint64(mb->buffer, u);
+        little_endian_write_uint64(mb->buffer + mb->write_pos, u);
     }
     mb->write_pos += 8;
-    return MOTAN_OK;
 }
 
-int mb_write_varint(motan_bytes_buffer_t *mb, uint64_t u, int *len) {
+void mb_write_varint(motan_bytes_buffer_t *mb, uint64_t u, int *len) {
     int l = 0;
     for (; u >= 1 << 7;) {
-        int err = mb_write_byte(mb, (uint8_t) ((u & 0x7f) | 0x80));
-        if (err != MOTAN_OK) {
-            return err;
-        }
+        mb_write_byte(mb, (uint8_t) ((u & 0x7f) | 0x80));
         u >>= 7;
         l++;
     }
-    int err = mb_write_byte(mb, (uint8_t) u);
-    if (err != MOTAN_OK) {
-        return err;
-    }
+    mb_write_byte(mb, (uint8_t) u);
     *len = l + 1;
-    return MOTAN_OK;
 }
 
 int mb_read_bytes(motan_bytes_buffer_t *mb, uint8_t *bs, int len) {
@@ -193,9 +170,9 @@ int mb_read_uint16(motan_bytes_buffer_t *mb, uint16_t *u) {
         return E_MOTAN_BUFFER_NOT_ENOUGH;
     }
     if (mb->order == M_BIG_ENDIAN) {
-        *u = big_endian_read_uint16(mb->buffer);
+        *u = big_endian_read_uint16(mb->buffer + mb->read_pos);
     } else {
-        *u = little_endian_read_uint16(mb->buffer);
+        *u = little_endian_read_uint16(mb->buffer + mb->read_pos);
     }
     mb->read_pos += 2;
     return MOTAN_OK;
@@ -206,9 +183,9 @@ int mb_read_uint32(motan_bytes_buffer_t *mb, uint32_t *u) {
         return E_MOTAN_BUFFER_NOT_ENOUGH;
     }
     if (mb->order == M_BIG_ENDIAN) {
-        *u = big_endian_read_uint32(mb->buffer);
+        *u = big_endian_read_uint32(mb->buffer + mb->read_pos);
     } else {
-        *u = little_endian_read_uint32(mb->buffer);
+        *u = little_endian_read_uint32(mb->buffer + mb->read_pos);
     }
     mb->read_pos += 4;
     return MOTAN_OK;
@@ -219,9 +196,9 @@ int mb_read_uint64(motan_bytes_buffer_t *mb, uint64_t *u) {
         return E_MOTAN_BUFFER_NOT_ENOUGH;
     }
     if (mb->order == M_BIG_ENDIAN) {
-        *u = big_endian_read_uint64(mb->buffer);
+        *u = big_endian_read_uint64(mb->buffer + mb->read_pos);
     } else {
-        *u = little_endian_read_uint64(mb->buffer);
+        *u = little_endian_read_uint64(mb->buffer + mb->read_pos);
     }
     mb->read_pos += 8;
     return MOTAN_OK;
@@ -244,4 +221,3 @@ int mb_read_varint(motan_bytes_buffer_t *mb, uint64_t *u) {
     }
     return E_MOTAN_OVERFLOW;
 }
-

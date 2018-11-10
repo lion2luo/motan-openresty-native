@@ -13,8 +13,13 @@
 #define E_MOTAN_UNSUPPORTED_TYPE -3
 #define E_MOTAN_MEMORY_NOT_ENOUGH -4
 
+#define MOTAN_MODNAME "cmotan"
+#define MOTAN_VERSION "0.0.1"
+
+extern int luaopen_cmotan(lua_State *L);
+
 static inline int motan_version(lua_State *L) {
-    lua_pushstring(L, "0.0.1");
+    lua_pushstring(L, MOTAN_VERSION);
     return 1;
 }
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6)
 project(motan_lua)
 
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0 -std=c99 -Wall")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0 -std=c99 -Wno-unused-function -Wall")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNODEBUG -std=c99 -Wall")
 
 # for gcc we need this macro for ifreq
@@ -22,3 +22,6 @@ target_link_libraries(motan_static Lua)
 
 add_executable(buffer_unittest buffer_unittest.c)
 target_link_libraries(buffer_unittest motan_static)
+
+add_executable(serialization_unittest serialization_unittest.c)
+target_link_libraries(serialization_unittest motan_shared)

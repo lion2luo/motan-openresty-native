@@ -1,9 +1,9 @@
 //
 // Created by minggang on 2018/11/9.
 //
+#include "lauxlib.h"
 
 #include "serialization.h"
-#include "lauxlib.h"
 #include "buffer.h"
 #include "motan.h"
 
@@ -38,6 +38,8 @@ int lua_isinteger(lua_State *L, int idx) {
 }
 #endif
 
+static int motan_simple_serialize_data(lua_State *L, motan_bytes_buffer_t *mb);
+
 int luaopen_cmotan(lua_State *L) {
     luaL_Reg reg[] = {
             {"simple_serialize",   motan_simple_serialize},
@@ -45,104 +47,77 @@ int luaopen_cmotan(lua_State *L) {
             {"version",            motan_version},
             {NULL, NULL}
     };
-    luaL_setfuncs(L, reg, 1);
-    return 0;
+
+    lua_newtable(L);
+
+    luaL_setfuncs(L, reg, 0);
+
+    lua_pushlightuserdata(L, NULL);
+    lua_setfield(L, -2, "null");
+
+    /* Set module name / version fields */
+    lua_pushliteral(L, MOTAN_MODNAME);
+    lua_setfield(L, -2, "_NAME");
+    lua_pushliteral(L, MOTAN_VERSION);
+    lua_setfield(L, -2, "_VERSION");
+
+    return 1;
 }
 
-static int _write_string(lua_State *L, motan_bytes_buffer_t *mb) {
+static void _write_string(lua_State *L, motan_bytes_buffer_t *mb) {
     size_t len;
     const char *s = lua_tolstring(L, -1, &len);
-    int err = mb_write_byte(mb, T_BYTE);
-    if (err != MOTAN_OK) {
-        return err;
-    }
-    err = mb_write_uint32(mb, len);
-    if (err != MOTAN_OK) {
-        return err;
-    }
-    err = mb_write_bytes(mb, (const uint8_t *) s, len);
-    if (err != MOTAN_OK) {
-        return err;
-    }
-    return MOTAN_OK;
+    mb_write_byte(mb, T_STRING);
+    mb_write_uint32(mb, len);
+    mb_write_bytes(mb, (const uint8_t *) s, len);
 }
 
-static int _write_bool(lua_State *L, motan_bytes_buffer_t *mb) {
-    int err = mb_write_byte(mb, T_STRING);
-    if (err != MOTAN_OK) {
-        return err;
-    }
+static void _write_bool(lua_State *L, motan_bytes_buffer_t *mb) {
+    mb_write_byte(mb, T_BOOL);
     if (lua_toboolean(L, -1)) {
-        err = mb_write_byte(mb, 1);
+        mb_write_byte(mb, 1);
     } else {
-        err = mb_write_byte(mb, 0);
+        mb_write_byte(mb, 0);
     }
-    return err;
 }
 
-static int _write_number(lua_State *L, motan_bytes_buffer_t *mb) {
+static void _write_number(lua_State *L, motan_bytes_buffer_t *mb) {
     if (lua_isinteger(L, -1)) {
         int v_len;
-        int err = mb_write_byte(mb, T_INT64);
-        if (err != MOTAN_OK) {
-            return err;
-        }
-        return mb_write_varint(mb, zigzag_encode(lua_tointeger(L, -1)), &v_len);
+        mb_write_byte(mb, T_INT64);
+        mb_write_varint(mb, zigzag_encode(lua_tointeger(L, -1)), &v_len);
     } else {
-        int err = mb_write_byte(mb, T_FLOAT64);
-        if (err != MOTAN_OK) {
-            return err;
-        }
-        return mb_write_uint64(mb, (uint64_t) lua_tonumber(L, -1));
+        mb_write_byte(mb, T_FLOAT64);
+        double f = lua_tonumber(L, -1);
+        mb_write_uint64(mb, *((uint64_t *) &f));
     }
 }
 
-static int _write_string_array(lua_State *L, motan_bytes_buffer_t *mb, int items) {
-    int err = mb_write_byte(mb, T_STRING_ARRAY);
-    if (err != MOTAN_OK) {
-        return err;
-    }
+static void _write_string_array(lua_State *L, motan_bytes_buffer_t *mb, int items) {
+    mb_write_byte(mb, T_STRING_ARRAY);
     int pos = mb->write_pos;
-    err = mb_set_write_pos(mb, pos + 4);
-    if (err != MOTAN_OK) {
-        return err;
-    }
+    mb_set_write_pos(mb, pos + 4);
     for (int i = 1; i <= items; i++) {
         lua_rawgeti(L, -1, i);
-        int len;
+        size_t len;
         const char *s = lua_tolstring(L, -1, &len);
-        err = mb_write_uint32(mb, len);
-        if (err != MOTAN_OK) {
-            lua_pop(L, 1);
-            return err;
-        }
-        err = mb_write_bytes(mb, (const uint8_t *) s, len);
-        if (err != MOTAN_OK) {
-            lua_pop(L, 1);
-            return err;
-        }
+        mb_write_uint32(mb, len);
+        mb_write_bytes(mb, (const uint8_t *) s, len);
         lua_pop(L, 1);
     }
     int now_pos = mb->write_pos;
     mb_set_write_pos(mb, pos);
     mb_write_uint32(mb, now_pos - pos - 4);
     mb_set_write_pos(mb, now_pos);
-    return MOTAN_OK;
 }
 
 static int _write_array(lua_State *L, motan_bytes_buffer_t *mb, int items) {
-    int err = mb_write_byte(mb, T_ARRAY);
-    if (err != MOTAN_OK) {
-        return err;
-    }
+    mb_write_byte(mb, T_ARRAY);
     int pos = mb->write_pos;
-    err = mb_set_write_pos(mb, pos + 4);
-    if (err != MOTAN_OK) {
-        return err;
-    }
+    mb_set_write_pos(mb, pos + 4);
     for (int i = 1; i <= items; i++) {
         lua_rawgeti(L, -1, i);
-        err = motan_simple_serialize_data(L, mb);
+        int err = motan_simple_serialize_data(L, mb);
         if (err != MOTAN_OK) {
             lua_pop(L, 1);
             return err;
@@ -156,66 +131,57 @@ static int _write_array(lua_State *L, motan_bytes_buffer_t *mb, int items) {
     return MOTAN_OK;
 }
 
-static int _write_string_map(lua_State *L, motan_bytes_buffer_t *mb) {
-    int err = mb_write_byte(mb, T_STRING_MAP);
-    if (err != MOTAN_OK) {
-        return err;
-    }
+static void _write_string_map(lua_State *L, motan_bytes_buffer_t *mb) {
     int pos = mb->write_pos;
-    err = mb_set_write_pos(mb, pos + 4);
-    if (err != MOTAN_OK) {
-        return err;
-    }
-
+    mb_write_byte(mb, T_STRING_MAP);
+    mb_set_write_pos(mb, pos + 4);
     lua_pushnil(L);
     while (lua_next(L, -2) != 0) {
-        int len;
+        size_t len;
         // For key
         const char *s = lua_tolstring(L, -2, &len);
-        err = mb_write_uint32(mb, len);
-        if (err != MOTAN_OK) {
-            lua_pop(L, 2);
-            return err;
-        }
-        err = mb_write_bytes(mb, (const uint8_t *) s, len);
-        if (err != MOTAN_OK) {
-            lua_pop(L, 2);
-            return err;
-        }
+        mb_write_uint32(mb, len);
+        mb_write_bytes(mb, (const uint8_t *) s, len);
 
         // For value
         s = lua_tolstring(L, -1, &len);
-        err = mb_write_uint32(mb, len);
-        if (err != MOTAN_OK) {
-            lua_pop(L, 2);
-            return err;
-        }
-        err = mb_write_bytes(mb, (const uint8_t *) s, len);
-        if (err != MOTAN_OK) {
-            lua_pop(L, 2);
-            return err;
-        }
+        mb_write_uint32(mb, len);
+        mb_write_bytes(mb, (const uint8_t *) s, len);
         lua_pop(L, 1);
     }
-    lua_pop(L, 1);
     int now_pos = mb->write_pos;
     mb_set_write_pos(mb, pos);
     mb_write_uint32(mb, now_pos - pos - 4);
     mb_set_write_pos(mb, now_pos);
-    return MOTAN_OK;
 }
 
 static int _write_map(lua_State *L, motan_bytes_buffer_t *mb) {
-    int err = mb_write_byte(mb, T_MAP);
-    if (err != MOTAN_OK) {
-        return err;
-    }
+    mb_write_byte(mb, T_MAP);
     int pos = mb->write_pos;
-    err = mb_set_write_pos(mb, pos + 4);
-    if (err != MOTAN_OK) {
-        return err;
-    }
+    mb_set_write_pos(mb, pos + 4);
+    lua_pushnil(L);
+    while (lua_next(L, -2) != 0) {
+        // For key
+        // table key value
+        lua_pushvalue(L, -2);
+        // table key value key
+        int err = motan_simple_serialize_data(L, mb);
+        if (err != MOTAN_OK) {
+            lua_pop(L, 3);
+            return err;
+        }
+        lua_pop(L, 1);
 
+        // For value
+        // table key value
+        err = motan_simple_serialize_data(L, mb);
+        lua_pop(L, 1);
+        // table key
+        if (err != MOTAN_OK) {
+            lua_pop(L, 1);
+            return err;
+        }
+    }
     int now_pos = mb->write_pos;
     mb_set_write_pos(mb, pos);
     mb_write_uint32(mb, now_pos - pos - 4);
@@ -243,6 +209,8 @@ static int _write_table(lua_State *L, motan_bytes_buffer_t *mb) {
             if (lua_tonumber(L, -2) < 1) {
                 is_array &= 0;
             }
+        } else {
+            is_array &= 0;
         }
 
         if (k_type != LUA_TSTRING) {
@@ -253,37 +221,42 @@ static int _write_table(lua_State *L, motan_bytes_buffer_t *mb) {
         if (v_type != LUA_TSTRING) {
             values_are_string &= 0;
         }
-
         lua_pop(L, 1);
+        // table key
         if (!values_are_string && !is_array) {
             lua_pop(L, 1);
             return _write_map(L, mb);
         }
     }
-    lua_pop(L, 1);
     if (is_array) {
         if (values_are_string) {
-            return _write_string_array(L, mb, items);
+            _write_string_array(L, mb, items);
+            return MOTAN_OK;
         } else {
             return _write_array(L, mb, items);
         }
     }
     // remain is string map
-    return _write_string_map(L, mb);
+    _write_string_map(L, mb);
+    return MOTAN_OK;
 }
 
 static int motan_simple_serialize_data(lua_State *L, motan_bytes_buffer_t *mb) {
     switch (lua_type(L, -1)) {
         case LUA_TSTRING:
-            return _write_string(L, mb);
+            _write_string(L, mb);
+            return MOTAN_OK;
         case LUA_TNUMBER:
-            return _write_number(L, mb);
+            _write_number(L, mb);
+            return MOTAN_OK;
         case LUA_TBOOLEAN:
-            return _write_bool(L, mb);
+            _write_bool(L, mb);
+            return MOTAN_OK;
         case LUA_TTABLE:
             return _write_table(L, mb);
         case LUA_TNIL:
-            return mb_write_byte(mb, T_NULL);
+            mb_write_byte(mb, T_NULL);
+            return MOTAN_OK;
         default:
             return E_MOTAN_UNSUPPORTED_TYPE;
     }
@@ -316,11 +289,15 @@ int motan_simple_serialize(lua_State *L) {
             lua_error(L);
         }
     }
+    for (int i = 0; i < mb->write_pos; i++) {
+        printf("%02x", (uint8_t) mb->buffer[i]);
+    }
+    printf("\n");
     lua_pushlstring(L, (const char *) mb->buffer, mb->write_pos); // first result
     motan_free_bytes_buffer(mb);
     return 1; // number of results
 }
 
 int motan_simple_deserialize(lua_State *L) {
-
+    return MOTAN_OK;
 }

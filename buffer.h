@@ -23,21 +23,21 @@ extern motan_bytes_buffer_t *motan_new_bytes_buffer(size_t capacity, byte_order_
 
 extern void motan_free_bytes_buffer(motan_bytes_buffer_t *mb);
 
-extern int mb_write_bytes(motan_bytes_buffer_t *mb, const uint8_t *bytes, int len);
+extern void mb_write_bytes(motan_bytes_buffer_t *mb, const uint8_t *bytes, int len);
 
-extern int mb_write_byte(motan_bytes_buffer_t *mb, uint8_t u);
+extern void mb_write_byte(motan_bytes_buffer_t *mb, uint8_t u);
 
-extern int mb_write_uint16(motan_bytes_buffer_t *mb, uint16_t u);
+extern void mb_write_uint16(motan_bytes_buffer_t *mb, uint16_t u);
 
-extern int mb_write_uint32(motan_bytes_buffer_t *mb, uint32_t u);
+extern void mb_write_uint32(motan_bytes_buffer_t *mb, uint32_t u);
 
-extern int mb_write_uint64(motan_bytes_buffer_t *mb, uint64_t u);
+extern void mb_write_uint64(motan_bytes_buffer_t *mb, uint64_t u);
 
-extern int mb_write_varint(motan_bytes_buffer_t *mb, uint64_t u, int *len);
+extern void mb_write_varint(motan_bytes_buffer_t *mb, uint64_t u, int *len);
 
-extern int mb_set_write_pos(motan_bytes_buffer_t *mb, uint32_t pos);
+extern void mb_set_write_pos(motan_bytes_buffer_t *mb, uint32_t pos);
 
-extern int mb_set_read_pos(motan_bytes_buffer_t *mb, uint32_t pos);
+extern void mb_set_read_pos(motan_bytes_buffer_t *mb, uint32_t pos);
 
 extern int mb_remain(motan_bytes_buffer_t *mb);
 
