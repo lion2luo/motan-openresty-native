@@ -1,27 +1,22 @@
 cmake_minimum_required(VERSION 3.6)
 project(motan_lua)
 
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0 -std=c99 -Wno-unused-function -Wall")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNODEBUG -std=c99 -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNODEBUG -std=c99 -Wall -Wextra")
 
 # for gcc we need this macro for ifreq
 add_definitions(-D_BSD_SOURCE)
 
-include_directories(./)
+# we use luajit 2.0 to compile, the generated library still can running with luajit-2.1
+include_directories(./ /usr/local/include/luajit-2.0)
 # we should use case sensitive package name for linux
-find_package(Lua REQUIRED)
-set(SOURCE_FILES serialization.c utils.c buffer.c)
+set(SOURCE_FILES serialization.c buffer.c)
 
 add_library(motan_shared SHARED ${SOURCE_FILES})
 SET_TARGET_PROPERTIES(motan_shared PROPERTIES OUTPUT_NAME "motan")
-target_link_libraries(motan_shared lua)
-
-add_library(motan_static STATIC ${SOURCE_FILES})
-SET_TARGET_PROPERTIES(motan_static PROPERTIES OUTPUT_NAME "motan")
-target_link_libraries(motan_static lua)
+target_link_libraries(motan_shared luajit-5.1)
 
 add_executable(buffer_unittest buffer_unittest.c)
-target_link_libraries(buffer_unittest motan_static)
+target_link_libraries(buffer_unittest motan_shared)
 
 add_executable(serialization_unittest serialization_unittest.c)
-target_link_libraries(serialization_unittest lua)
+target_link_libraries(serialization_unittest luajit-5.1)

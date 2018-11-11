@@ -6,7 +6,6 @@
 
 #include "serialization.h"
 #include "buffer.h"
-#include "motan.h"
 
 #if !defined(LUA_VERSION_NUM) || LUA_VERSION_NUM < 502
 /* Compatibility for Lua 5.1.
@@ -314,7 +313,7 @@ static int _read_bool(lua_State *L, motan_bytes_buffer_t *mb) {
     return MOTAN_OK;
 }
 
-static int _read_null(lua_State *L, motan_bytes_buffer_t *mb) {
+static int _read_null(lua_State *L, __unused motan_bytes_buffer_t *mb) {
     // for nil value table will remove it, here we put a userdata
     lua_pushlightuserdata(L, NULL);
     return MOTAN_OK;
@@ -407,7 +406,7 @@ static int _read_string_map(lua_State *L, motan_bytes_buffer_t *mb) {
         return err;
     }
     lua_newtable(L);
-    int end_pos = mb->read_pos + len;
+    uint32_t end_pos = mb->read_pos + len;
     while (mb->read_pos < end_pos) {
         // table
         err = _read_string(L, mb);
@@ -440,7 +439,7 @@ static int _read_map(lua_State *L, motan_bytes_buffer_t *mb) {
         return err;
     }
     lua_newtable(L);
-    int end_pos = mb->read_pos + len;
+    uint32_t end_pos = mb->read_pos + len;
     while (mb->read_pos < end_pos) {
         // table
         uint8_t type;
@@ -483,7 +482,7 @@ static int _read_string_array(lua_State *L, motan_bytes_buffer_t *mb) {
     }
     int count = 1;
     lua_newtable(L);
-    int end_pos = mb->read_pos + len;
+    uint32_t end_pos = mb->read_pos + len;
     while (mb->read_pos < end_pos) {
         err = _read_string(L, mb);
         if (err != MOTAN_OK) {
@@ -508,7 +507,7 @@ static int _read_array(lua_State *L, motan_bytes_buffer_t *mb) {
     }
     int count = 1;
     lua_newtable(L);
-    int end_pos = mb->read_pos + len;
+    uint32_t end_pos = mb->read_pos + len;
     while (mb->read_pos < end_pos) {
         uint8_t type;
         err = motan_simple_deserialize_data(L, mb, &type);

@@ -19,9 +19,17 @@
 
 int main() {
     static char cpath[1024];
+#ifdef __linux__
+#include <libgen.h>
+    static char exe_path[1024];
+    readlink("/proc/self/exe", exe_path, sizeof(exe_path));
+    strcpy(cpath, (const char*) dirname(exe_path));
+#else
     getcwd(cpath, sizeof(cpath));
+#endif
     strcat(cpath, "/libmotan." DL_SUFFIX);
     setenv("LUA_CPATH", cpath, 1);
+    fprintf(stderr, "LUA_CPATH: %s\n", cpath);
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
     int stat = luaL_dofile(L, "/data1/test.lua");

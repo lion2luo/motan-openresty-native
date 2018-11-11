@@ -25,6 +25,7 @@ motan_new_bytes_buffer_from_bytes(const uint8_t *raw_bytes, size_t len, byte_ord
         mb->buffer = (uint8_t *) raw_bytes;
     }
     mb->_read_only = read_only;
+    mb->order = order;
     mb->read_pos = 0;
     mb->write_pos = len;
     mb->capacity = len;
