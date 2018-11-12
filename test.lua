@@ -103,6 +103,10 @@ local v = {
 };
 print_table({ cmotan.simple_serialize(v) })
 print_table(cmotan.simple_deserialize(cmotan.simple_serialize(v)))
+local wrong_buf = "1" .. cmotan.simple_serialize(v)
+local _, err = pcall(cmotan.simple_deserialize, wrong_buf)
+print(err)
+
 local max_test_time = 100000
 local buf = cmotan.simple_serialize(v)
 for i = 1, max_test_time do

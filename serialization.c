@@ -278,14 +278,11 @@ int motan_simple_serialize(lua_State *L) {
         return 1;
     }
     if (!lua_istable(L, 1)) {
-        lua_pushstring(L,
-                       "the simple serialization parameter must be an array that contains all real input parameters");
-        lua_error(L);
+        luaL_error(L, "the simple serialization parameter must be an array that contains all real input parameters");
     }
     motan_bytes_buffer_t *mb = motan_new_bytes_buffer(4096, M_BIG_ENDIAN);
     if (mb == NULL) {
-        lua_pushstring(L, motan_error(E_MOTAN_MEMORY_NOT_ENOUGH));
-        lua_error(L); // this is a long jmp will break this function, make sure all resources has been released
+        luaL_error(L, "%s", motan_error(E_MOTAN_MEMORY_NOT_ENOUGH));
     }
     int n_params = lua_rawlen(L, 1);
     for (int i = 1; i <= n_params; i++) {
@@ -294,8 +291,7 @@ int motan_simple_serialize(lua_State *L) {
         lua_pop(L, 1);
         if (err != MOTAN_OK) {
             motan_free_bytes_buffer(mb);
-            lua_pushstring(L, motan_error(err));
-            lua_error(L);
+            luaL_error(L, "%s", motan_error(err));
         }
     }
     lua_pushlstring(L, (const char *) mb->buffer, mb->write_pos); // first result
@@ -577,8 +573,7 @@ int motan_simple_deserialize(lua_State *L) {
         if (err != MOTAN_OK) {
             lua_pop(L, 1);
             motan_free_bytes_buffer(mb);
-            lua_pushstring(L, motan_error(err));
-            lua_error(L);
+            luaL_error(L, "%s", motan_error(err));
         }
         lua_rawseti(L, -2, count);
         count++;
