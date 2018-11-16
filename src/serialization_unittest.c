@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <lua.h>
 
 #include "lualib.h"
 #include "lauxlib.h"
@@ -32,7 +31,7 @@ int main() {
     fprintf(stderr, "LUA_CPATH: %s\n", cpath);
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
-    int stat = luaL_dofile(L, "/data1/test.lua");
+    int stat = luaL_dofile(L, "test.lua");
     if (stat != 0) {
         printf("loadfile fail, result: %s\n", lua_tostring(L,-1));
     }

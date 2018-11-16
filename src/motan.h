@@ -15,7 +15,10 @@
 #define E_MOTAN_WRONG_SIZE -5
 
 #define MOTAN_MODNAME "cmotan"
-#define MOTAN_VERSION "0.0.1"
+#ifndef MOTAN_REVISION
+#define MOTAN_REVISION ""
+#endif
+#define MOTAN_VERSION "0.0.1" MOTAN_REVISION
 
 #ifndef __unused
 #define __unused __attribute__((unused))
