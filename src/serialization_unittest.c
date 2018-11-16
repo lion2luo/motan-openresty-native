@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <lua.h>
 
-#include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
 
@@ -33,8 +33,8 @@ int main() {
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
     int stat = luaL_dofile(L, "/data1/test.lua");
-    if (stat) {
-        perror("do file");
+    if (stat != 0) {
+        printf("loadfile fail, result: %s\n", lua_tostring(L,-1));
     }
     lua_close(L);
     return 0;

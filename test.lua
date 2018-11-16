@@ -94,15 +94,19 @@ local v = {
     1.1, -- float
     1237981, -- int
     2123123,
+    {},
     true, -- bool
-    { a = "b", c = "d", e = 4 }, -- map<string, object>
+    { a = "b", c = "d", e = 4 }, -- map<object, object>
     { "what", "is", "wrong" }, -- string[]
     "hello world",
     { a = { "this", "is", "a", "test" }, b = { "this", "is", "a", "test" } }, -- map<string, string[]>
     { { aa = "bb", aaa = "bb" }, { cc = "dd", ccc = "dd" }, { ee = "ff", eee = "ff" }, { gg = "hh", ggg = "hh" } } -- map<string,sring>[]
 };
+v[4][1.11] = "1"
+
 print_table({ cmotan.simple_serialize(v) })
 print_table(cmotan.simple_deserialize(cmotan.simple_serialize(v)))
+
 local wrong_buf = "1" .. cmotan.simple_serialize(v)
 local _, err = pcall(cmotan.simple_deserialize, wrong_buf)
 print(err)

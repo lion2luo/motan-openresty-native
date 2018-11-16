@@ -226,7 +226,7 @@ static int _write_table(lua_State *L, motan_bytes_buffer_t *mb) {
         }
         lua_pop(L, 1);
         // table key
-        if (!values_are_string && !is_array) {
+        if (!is_array && !values_are_string ) {
             lua_pop(L, 1);
             return _write_map(L, mb);
         }
@@ -245,8 +245,13 @@ static int _write_table(lua_State *L, motan_bytes_buffer_t *mb) {
             return _write_array(L, mb, items);
         }
     }
-    // remain is string map
-    _write_string_map(L, mb);
+
+    // now type is map and values are string
+    if (keys_are_string) {
+        _write_string_map(L, mb);
+    } else {
+        _write_map(L, mb);
+    }
     return MOTAN_OK;
 }
 
@@ -443,12 +448,6 @@ static int _read_map(lua_State *L, motan_bytes_buffer_t *mb) {
         if (err != MOTAN_OK) {
             lua_pop(L, 1);
             return err;
-        }
-        // map key must be number or string
-        if (type != T_STRING && type != T_BYTE && type != T_INT16 && type != T_INT32 && type != T_INT64 &&
-            type != T_FLOAT32 && type != T_FLOAT64) {
-            lua_pop(L, 1);
-            return E_MOTAN_UNSUPPORTED_TYPE;
         }
         // table key
         err = motan_simple_deserialize_data(L, mb, &type);
